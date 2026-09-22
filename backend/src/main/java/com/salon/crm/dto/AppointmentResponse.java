@@ -22,7 +22,9 @@ public record AppointmentResponse(
         AppointmentStatus status,
         AppointmentSource source,
         String notes,
-        BigDecimal totalPrice
+        BigDecimal totalPrice,
+        UUID saleId,
+        com.salon.crm.entity.SaleStatus saleStatus
 ) {
     public record ServiceRef(UUID id, String name, int durationMinutes, BigDecimal price) {
     }

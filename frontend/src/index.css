@@ -1,1 +1,13 @@
 @import 'tailwindcss';
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  main * {
+    visibility: visible;
+  }
+  .print\:hidden {
+    display: none !important;
+  }
+}

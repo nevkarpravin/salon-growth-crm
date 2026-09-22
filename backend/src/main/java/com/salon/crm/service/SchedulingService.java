@@ -56,17 +56,20 @@ public class SchedulingService {
     private final AppointmentRepository appointmentRepository;
     private final ClientRepository clientRepository;
     private final VisitRepository visitRepository;
+    private final com.salon.crm.repository.SaleRepository saleRepository;
 
     public SchedulingService(StaffRepository staffRepository,
                              ServiceItemRepository serviceItemRepository,
                              AppointmentRepository appointmentRepository,
                              ClientRepository clientRepository,
-                             VisitRepository visitRepository) {
+                             VisitRepository visitRepository,
+                             com.salon.crm.repository.SaleRepository saleRepository) {
         this.staffRepository = staffRepository;
         this.serviceItemRepository = serviceItemRepository;
         this.appointmentRepository = appointmentRepository;
         this.clientRepository = clientRepository;
         this.visitRepository = visitRepository;
+        this.saleRepository = saleRepository;
     }
 
     // ---- Staff ----
@@ -188,10 +191,13 @@ public class SchedulingService {
             visit.setClient(a.getClient());
             visit.setVisitDate(a.getStartTime().toLocalDate());
             visit.setStylistName(a.getStaff().getName());
-            visit.setServices(a.getServices().stream().map(ServiceItem::getName).toList());
+            visit.setServices(new ArrayList<>(
+                    a.getServices().stream().map(ServiceItem::getName).toList()));
             visit.setAmount(a.getTotalPrice());
             visit.setNotes(a.getNotes());
-            visitRepository.save(visit);
+            Visit savedVisit = visitRepository.save(visit);
+            a.setVisit(savedVisit);
+            appointmentRepository.save(a);
         }
         return toAppointmentResponse(saved);
     }
@@ -359,6 +365,12 @@ public class SchedulingService {
                 a.getStatus(),
                 a.getSource(),
                 a.getNotes(),
-                a.getTotalPrice());
+                a.getTotalPrice(),
+                saleRepository.findByAppointmentId(a.getId()).stream()
+                        .filter(s -> s.getStatus() != com.salon.crm.entity.SaleStatus.VOID)
+                        .findFirst().map(com.salon.crm.entity.Sale::getId).orElse(null),
+                saleRepository.findByAppointmentId(a.getId()).stream()
+                        .filter(s -> s.getStatus() != com.salon.crm.entity.SaleStatus.VOID)
+                        .findFirst().map(com.salon.crm.entity.Sale::getStatus).orElse(null));
     }
 }

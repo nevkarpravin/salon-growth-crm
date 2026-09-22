@@ -1,13 +1,33 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { CalendarDays, Upload, Users, Sparkles, Scissors, UserCog } from 'lucide-react'
+import {
+  CalendarDays,
+  Upload,
+  Users,
+  Sparkles,
+  Scissors,
+  UserCog,
+  ShoppingCart,
+  Receipt,
+  Package,
+  MoreHorizontal,
+} from 'lucide-react'
 
 const nav = [
   { to: '/calendar', label: 'Calendar', icon: CalendarDays },
   { to: '/clients', label: 'Clients', icon: Users },
+  { to: '/checkout', label: 'Checkout', icon: ShoppingCart },
+  { to: '/sales', label: 'Sales', icon: Receipt },
+]
+
+const sideNav = [
+  ...nav,
   { to: '/services', label: 'Services', icon: Scissors },
   { to: '/staff', label: 'Staff', icon: UserCog },
+  { to: '/products', label: 'Products', icon: Package },
   { to: '/import', label: 'Import', icon: Upload },
 ]
+
+const tabs = [...nav, { to: '/more', label: 'More', icon: MoreHorizontal }]
 
 function navClass({ isActive }: { isActive: boolean }) {
   return `flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
@@ -31,7 +51,7 @@ export default function Layout() {
           <span className="text-lg font-bold text-gray-900">Salon CRM</span>
         </div>
         <nav className="flex flex-col gap-1">
-          {nav.map(({ to, label, icon: Icon }) => (
+          {sideNav.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to} className={navClass}>
               <Icon className="h-4 w-4" />
               {label}
@@ -52,7 +72,7 @@ export default function Layout() {
 
       {/* Bottom tab nav (<lg) */}
       <nav className="fixed inset-x-0 bottom-0 z-20 flex border-t border-gray-200 bg-white lg:hidden">
-        {nav.map(({ to, label, icon: Icon }) => (
+        {tabs.map(({ to, label, icon: Icon }) => (
           <NavLink key={to} to={to} className={tabClass}>
             <Icon className="h-5 w-5" />
             {label}

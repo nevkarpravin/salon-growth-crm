@@ -310,6 +310,23 @@ export default function CalendarPage() {
               {selected.status}
             </span>
             <div className="flex flex-wrap gap-2 pt-2">
+              {(selected.status === 'BOOKED' || selected.status === 'CONFIRMED' || selected.status === 'COMPLETED')
+                && selected.saleStatus !== 'PAID' && (
+                <Link
+                  to={`/checkout?appointmentId=${selected.id}`}
+                  className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
+                >
+                  Checkout
+                </Link>
+              )}
+              {selected.saleStatus === 'PAID' && selected.saleId && (
+                <Link
+                  to={`/sales/${selected.saleId}`}
+                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  View invoice
+                </Link>
+              )}
               {selected.status === 'BOOKED' && (
                 <ActionBtn label="Confirm" onClick={() => statusAction(selected, 'CONFIRMED')} />
               )}
