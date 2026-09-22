@@ -162,20 +162,19 @@ export default function WhatsAppSimulatorPage() {
   )
 }
 
-// Interleave user texts and bot messages preserving send order as best we can:
-// local texts get pseudo-timestamps from insertion order.
+// Interleave user texts and bot messages by timestamp: outbox rows carry a
+// createdAt; locally-sent texts get their send time (id = Date.now()).
 function mergeChronological(
   outMsgs: ChatItem[],
   sent: { body: string; id: number }[],
 ): ChatItem[] {
-  const items: ChatItem[] = [...outMsgs]
-  sent.forEach((s, i) => {
-    items.push({
-      id: `sent-${i}`,
-      direction: 'in',
-      body: s.body,
-      createdAt: '',
-    })
-  })
-  return items
+  const items = [
+    ...outMsgs.map((m) => ({ m, ts: new Date(m.createdAt ?? 0).getTime() })),
+    ...sent.map((s, i) => ({
+      m: { id: `sent-${i}`, direction: 'in' as const, body: s.body },
+      ts: s.id,
+    })),
+  ]
+  items.sort((a, b) => a.ts - b.ts)
+  return items.map((x) => x.m)
 }

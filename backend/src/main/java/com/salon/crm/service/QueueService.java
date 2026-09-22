@@ -340,6 +340,7 @@ public class QueueService {
         if (rating < 1 || rating > 5) {
             throw new BadRequestException("Rating must be 1-5");
         }
+        boolean firstReview = ticket.getReviewedAt() == null;
         if (ticket.getRating() == null) {
             ticket.setRating(rating);
         }
@@ -348,12 +349,15 @@ public class QueueService {
         }
         ticket.setReviewedAt(Instant.now());
         ticketRepository.save(ticket);
-        String googleUrl = properties.getGoogleReviewUrl();
-        String reply = ticket.getRating() != null && ticket.getRating() >= 4
-                && googleUrl != null && !googleUrl.isBlank()
-                ? MessageTemplates.publicReviewThanks(googleUrl)
-                : MessageTemplates.privateReviewThanks();
-        messagingService.send(ticket.getClient().getPhone(), reply, ticket);
+        if (firstReview) {
+            String googleUrl = properties.getGoogleReviewUrl();
+            int effectiveRating = ticket.getRating() != null ? ticket.getRating() : rating;
+            String reply = effectiveRating >= 4
+                    && googleUrl != null && !googleUrl.isBlank()
+                    ? MessageTemplates.publicReviewThanks(googleUrl)
+                    : MessageTemplates.privateReviewThanks(effectiveRating);
+            messagingService.send(ticket.getClient().getPhone(), reply, ticket);
+        }
         return toResponse(ticket);
     }
 

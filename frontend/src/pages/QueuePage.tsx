@@ -167,6 +167,19 @@ function TicketCard({
         </div>
       )}
 
+      {ticket.rating != null && (
+        <div className="mt-2 text-xs">
+          <span className="font-medium text-amber-500">
+            {'★'.repeat(ticket.rating)}
+            {'☆'.repeat(Math.max(0, 5 - ticket.rating))}
+          </span>{' '}
+          <span className="text-gray-600">{ticket.rating}/5</span>
+          {ticket.reviewComment && (
+            <div className="mt-0.5 italic text-gray-500">“{ticket.reviewComment}”</div>
+          )}
+        </div>
+      )}
+
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {ticket.status === 'WAITING' && (
           <>

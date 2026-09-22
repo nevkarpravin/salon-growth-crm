@@ -190,6 +190,22 @@ class QueueFlowTest {
                         .content("{\"rating\":5,\"comment\":\"Great\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.rating").value(5));
+
+        var messages = outboundMessageRepository.findByToPhoneOrderByCreatedAtAsc("7000000007");
+        assertThat(messages.stream()
+                .filter(m -> m.getBody().contains("glad you enjoyed")).count())
+                .isEqualTo(1);
+
+        // adding a comment later must not send another thanks message
+        mvc.perform(post("/api/v1/queue/" + id + "/review")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"rating\":5,\"comment\":\"lovely\"}"))
+                .andExpect(status().isOk());
+        messages = outboundMessageRepository.findByToPhoneOrderByCreatedAtAsc("7000000007");
+        assertThat(messages.stream()
+                .filter(m -> m.getBody().contains("glad you enjoyed")
+                        || m.getBody().contains("feedback")).count())
+                .isEqualTo(1);
     }
 
     @Test

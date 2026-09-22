@@ -74,8 +74,10 @@ public final class MessageTemplates {
         return "Thanks! Would you share it publicly? " + googleReviewUrl;
     }
 
-    public static String privateReviewThanks() {
-        return "Thanks for your feedback, we'll do better.";
+    public static String privateReviewThanks(int rating) {
+        return rating >= 4
+                ? "Thank you so much! We're glad you enjoyed your visit."
+                : "Thanks for your feedback, we'll do better.";
     }
 
     public static String amountText(BigDecimal amount) {

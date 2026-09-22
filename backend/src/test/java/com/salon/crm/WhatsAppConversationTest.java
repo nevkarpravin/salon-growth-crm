@@ -128,6 +128,34 @@ class WhatsAppConversationTest {
     }
 
     @Test
+    void reviewFlowSendsSingleThanks() throws Exception {
+        simulate(PHONE, "Hi", "Test User");
+        simulate(PHONE, "1", null);
+        simulate(PHONE, "1", null);
+        simulate(PHONE, "0", null);
+
+        QueueTicket t = queueTicketRepository.findByQueueDateOrderByQueueOrderAsc(
+                LocalDate.now()).get(0);
+        mvc.perform(post("/api/v1/queue/" + t.getId() + "/start"))
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/v1/queue/" + t.getId() + "/finish"))
+                .andExpect(status().isOk());
+
+        String prompt = simulate(PHONE, "4", null);
+        assertThat(prompt).contains("1-5");
+        String askComment = simulate(PHONE, "5", null);
+        assertThat(askComment).contains("Any comment");
+        String thanks = simulate(PHONE, "Lovely cut", null);
+        assertThat(thanks).contains("Thank you");
+
+        var messages = outboundMessageRepository.findByToPhoneOrderByCreatedAtAsc(PHONE);
+        // exactly one thanks message from the service across rating + comment
+        assertThat(messages.stream()
+                .filter(m -> m.getBody().contains("glad you enjoyed")).count())
+                .isEqualTo(1);
+    }
+
+    @Test
     void metaWebhookProcessesTextMessage() throws Exception {
         String payload = """
                 {"entry":[{"changes":[{"value":{
