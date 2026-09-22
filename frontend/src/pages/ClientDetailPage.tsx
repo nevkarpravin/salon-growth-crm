@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import {
   api,
+  type AppointmentDto,
   type ClientDto,
   type FormulaCardDto,
   type PreferredChannel,
@@ -29,6 +30,7 @@ export default function ClientDetailPage() {
   const navigate = useNavigate()
   const [client, setClient] = useState<ClientDto | null>(null)
   const [tab, setTab] = useState<Tab>('timeline')
+  const [upcoming, setUpcoming] = useState<AppointmentDto[]>([])
   const [timeline, setTimeline] = useState<TimelineEntry[]>([])
   const [visits, setVisits] = useState<VisitDto[]>([])
   const [formulas, setFormulas] = useState<FormulaCardDto[]>([])
@@ -42,6 +44,16 @@ export default function ClientDetailPage() {
     api.timeline(id).then(setTimeline).catch(() => {})
     api.listVisits(id).then(setVisits).catch(() => {})
     api.listFormulas(id).then(setFormulas).catch(() => {})
+    const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const from = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T00:00:00`
+    const to = `${now.getFullYear() + 1}-01-01T00:00:00`
+    api
+      .listAppointments({ from, to, clientId: id })
+      .then((list) =>
+        setUpcoming(list.filter((a) => a.status === 'BOOKED' || a.status === 'CONFIRMED')),
+      )
+      .catch(() => {})
   }, [id])
 
   useEffect(() => {
@@ -126,6 +138,29 @@ export default function ClientDetailPage() {
         <Stat label="Total spend" value={`₹${Number(client.totalSpend ?? 0).toLocaleString('en-IN')}`} />
         <Stat label="Last visit" value={client.lastVisitDate ?? '—'} />
       </div>
+
+      {/* Upcoming appointments */}
+      {upcoming.length > 0 && (
+        <div className="mb-5 rounded-xl border border-gray-200 bg-white p-4">
+          <h2 className="mb-2 text-sm font-semibold text-gray-900">Upcoming appointments</h2>
+          <div className="space-y-2">
+            {upcoming.map((a) => (
+              <div key={a.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                <span className="text-gray-700">
+                  {new Date(a.startTime).toLocaleDateString()}{' '}
+                  {new Date(a.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {' '}· {a.services.map((s) => s.name).join(', ')} · {a.staffName}
+                </span>
+                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                  a.status === 'CONFIRMED' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                }`}>
+                  {a.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="mb-4 flex gap-1 overflow-x-auto border-b border-gray-200">

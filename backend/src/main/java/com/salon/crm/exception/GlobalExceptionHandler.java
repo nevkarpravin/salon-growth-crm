@@ -29,6 +29,22 @@ public class GlobalExceptionHandler {
         return problem;
     }
 
+    @ExceptionHandler(AppointmentConflictException.class)
+    public ProblemDetail handleConflict(AppointmentConflictException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Appointment Conflict");
+        problem.setType(URI.create("https://api.saloncrm/errors/appointment-conflict"));
+        return problem;
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    public ProblemDetail handleBadRequest(BadRequestException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problem.setTitle("Bad Request");
+        problem.setType(URI.create("https://api.saloncrm/errors/bad-request"));
+        return problem;
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ProblemDetail handleValidation(MethodArgumentNotValidException ex) {
         String detail = ex.getBindingResult().getFieldErrors().stream()

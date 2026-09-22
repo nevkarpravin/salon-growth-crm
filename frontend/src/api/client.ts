@@ -134,6 +134,78 @@ export interface ImportResult {
   errors: { row: number; message: string }[];
 }
 
+export type StaffRole = 'STYLIST' | 'THERAPIST' | 'RECEPTIONIST' | 'MANAGER';
+export type AppointmentStatus = 'BOOKED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
+export type AppointmentSource = 'DESK' | 'ONLINE';
+
+export interface StaffDto {
+  id: string;
+  name: string;
+  role: StaffRole;
+  phone?: string;
+  colorHex?: string;
+  active: boolean;
+  workingHours: { dayOfWeek: string; startTime: string; endTime: string }[];
+}
+
+export interface StaffRequest {
+  name: string;
+  role?: StaffRole;
+  phone?: string;
+  colorHex?: string;
+  active?: boolean;
+}
+
+export interface ServiceItemDto {
+  id: string;
+  name: string;
+  category?: string;
+  durationMinutes: number;
+  processingMinutes: number;
+  price: number;
+  active: boolean;
+}
+
+export interface ServiceItemRequest {
+  name: string;
+  category?: string;
+  durationMinutes: number;
+  processingMinutes?: number;
+  price: number;
+  active?: boolean;
+}
+
+export interface AppointmentDto {
+  id: string;
+  clientId: string;
+  clientName: string;
+  clientPhone: string;
+  staffId: string;
+  staffName: string;
+  colorHex?: string;
+  startTime: string;
+  endTime: string;
+  services: { id: string; name: string; durationMinutes: number; price: number }[];
+  status: AppointmentStatus;
+  source: AppointmentSource;
+  notes?: string;
+  totalPrice: number;
+}
+
+export interface AppointmentRequest {
+  clientId: string;
+  staffId: string;
+  startTime: string;
+  serviceIds: string[];
+  source?: AppointmentSource;
+  notes?: string;
+}
+
+export interface AvailabilitySlot {
+  start: string;
+  end: string;
+}
+
 const BASE = '/api/v1';
 
 export class ApiError extends Error {
@@ -241,4 +313,63 @@ export const api = {
     return res.json();
   },
   templateUrl: `${BASE}/clients/import/template`,
+
+  // Scheduling
+  listStaff: (active?: boolean) =>
+    request<StaffDto[]>(`/staff${active !== undefined ? `?active=${active}` : ''}`),
+  createStaff: (body: StaffRequest) =>
+    request<StaffDto>('/staff', { method: 'POST', body: JSON.stringify(body) }),
+  updateStaff: (id: string, body: StaffRequest) =>
+    request<StaffDto>(`/staff/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  setWorkingHours: (
+    id: string,
+    hours: { dayOfWeek: string; startTime: string; endTime: string }[],
+  ) =>
+    request<StaffDto>(`/staff/${id}/working-hours`, {
+      method: 'PUT',
+      body: JSON.stringify({ hours }),
+    }),
+  listServices: (active?: boolean) =>
+    request<ServiceItemDto[]>(
+      `/services${active !== undefined ? `?active=${active}` : ''}`,
+    ),
+  createService: (body: ServiceItemRequest) =>
+    request<ServiceItemDto>('/services', { method: 'POST', body: JSON.stringify(body) }),
+  updateService: (id: string, body: ServiceItemRequest) =>
+    request<ServiceItemDto>(`/services/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+  listAppointments: (params: {
+    from: string;
+    to: string;
+    staffId?: string;
+    status?: AppointmentStatus;
+    clientId?: string;
+  }) => {
+    const q = new URLSearchParams({ from: params.from, to: params.to });
+    if (params.staffId) q.set('staffId', params.staffId);
+    if (params.status) q.set('status', params.status);
+    if (params.clientId) q.set('clientId', params.clientId);
+    return request<AppointmentDto[]>(`/appointments?${q}`);
+  },
+  createAppointment: (body: AppointmentRequest) =>
+    request<AppointmentDto>('/appointments', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  updateAppointment: (id: string, body: AppointmentRequest) =>
+    request<AppointmentDto>(`/appointments/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+  setAppointmentStatus: (id: string, status: AppointmentStatus) =>
+    request<AppointmentDto>(`/appointments/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }),
+  availability: (staffId: string, date: string, serviceIds: string[]) =>
+    request<{ slots: AvailabilitySlot[] }>(
+      `/appointments/availability?staffId=${staffId}&date=${date}&serviceIds=${serviceIds.join(',')}`,
+    ),
 };

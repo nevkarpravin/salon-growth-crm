@@ -1,12 +1,22 @@
 package com.salon.crm.config;
 
+import com.salon.crm.entity.Appointment;
+import com.salon.crm.entity.AppointmentStatus;
+import com.salon.crm.entity.AppointmentSource;
 import com.salon.crm.entity.Client;
 import com.salon.crm.entity.FormulaCard;
 import com.salon.crm.entity.Gender;
 import com.salon.crm.entity.PreferredChannel;
+import com.salon.crm.entity.ServiceItem;
+import com.salon.crm.entity.Staff;
+import com.salon.crm.entity.StaffRole;
 import com.salon.crm.entity.Visit;
+import com.salon.crm.entity.WorkingHours;
+import com.salon.crm.repository.AppointmentRepository;
 import com.salon.crm.repository.ClientRepository;
 import com.salon.crm.repository.FormulaCardRepository;
+import com.salon.crm.repository.ServiceItemRepository;
+import com.salon.crm.repository.StaffRepository;
 import com.salon.crm.repository.VisitRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -14,7 +24,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -25,12 +39,21 @@ public class DataSeeder implements CommandLineRunner {
     private final ClientRepository clientRepository;
     private final VisitRepository visitRepository;
     private final FormulaCardRepository formulaCardRepository;
+    private final StaffRepository staffRepository;
+    private final ServiceItemRepository serviceItemRepository;
+    private final AppointmentRepository appointmentRepository;
 
     public DataSeeder(ClientRepository clientRepository, VisitRepository visitRepository,
-                      FormulaCardRepository formulaCardRepository) {
+                      FormulaCardRepository formulaCardRepository,
+                      StaffRepository staffRepository,
+                      ServiceItemRepository serviceItemRepository,
+                      AppointmentRepository appointmentRepository) {
         this.clientRepository = clientRepository;
         this.visitRepository = visitRepository;
         this.formulaCardRepository = formulaCardRepository;
+        this.staffRepository = staffRepository;
+        this.serviceItemRepository = serviceItemRepository;
+        this.appointmentRepository = appointmentRepository;
     }
 
     @Override
@@ -149,5 +172,108 @@ public class DataSeeder implements CommandLineRunner {
                 formulaCardRepository.save(card);
             }
         }
+
+        seedScheduling(today);
     }
+
+    private void seedScheduling(LocalDate today) {
+        // Staff: 4 members, Mon–Sat 10:00–20:00
+        String[][] staffData = {
+                {"Riya Kapoor", "STYLIST", "#e11d48"},
+                {"Sameer Sheikh", "STYLIST", "#7c3aed"},
+                {"Farhan Ali", "THERAPIST", "#059669"},
+                {"Anjali Deshmukh", "RECEPTIONIST", "#d97706"},
+        };
+        List<WorkingHours> monSat = new ArrayList<>();
+        for (DayOfWeek d : List.of(DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY,
+                DayOfWeek.THURSDAY, DayOfWeek.FRIDAY, DayOfWeek.SATURDAY)) {
+            WorkingHours wh = new WorkingHours();
+            wh.setDayOfWeek(d);
+            wh.setStartTime(LocalTime.of(10, 0));
+            wh.setEndTime(LocalTime.of(20, 0));
+            monSat.add(wh);
+        }
+        List<Staff> staffList = new ArrayList<>();
+        for (String[] sd : staffData) {
+            Staff staff = new Staff();
+            staff.setName(sd[0]);
+            staff.setRole(StaffRole.valueOf(sd[1]));
+            staff.setColorHex(sd[2]);
+            staff.setPhone("98" + (10000000 + staffList.size() * 111111));
+            staff.setWorkingHours(new ArrayList<>(monSat));
+            staffList.add(staffRepository.save(staff));
+        }
+
+        // Services
+        Object[][] serviceData = {
+                {"Haircut", "Hair", 45, 0, 800},
+                {"Hair Colour", "Hair", 90, 30, 3500},
+                {"Balayage", "Hair", 120, 45, 5500},
+                {"Hair Spa", "Hair", 60, 0, 1500},
+                {"Keratin Treatment", "Hair", 120, 0, 4000},
+                {"Facial", "Skin", 60, 0, 2000},
+                {"Clean-up", "Skin", 30, 0, 900},
+                {"Manicure", "Nails", 45, 0, 700},
+                {"Pedicure", "Nails", 45, 0, 800},
+                {"Beard Trim", "Grooming", 20, 0, 300},
+                {"Head Massage", "Wellness", 30, 0, 600},
+                {"Bridal Makeup", "Makeup", 180, 0, 12000},
+        };
+        List<ServiceItem> services = new ArrayList<>();
+        for (Object[] sd : serviceData) {
+            ServiceItem s = new ServiceItem();
+            s.setName((String) sd[0]);
+            s.setCategory((String) sd[1]);
+            s.setDurationMinutes((Integer) sd[2]);
+            s.setProcessingMinutes((Integer) sd[3]);
+            s.setPrice(BigDecimal.valueOf((Integer) sd[4]));
+            services.add(serviceItemRepository.save(s));
+        }
+
+        // ~25 appointments spread over yesterday/today/next 5 days
+        List<Client> clients = clientRepository.findAll();
+        AppointmentStatus[] statuses = {
+                AppointmentStatus.COMPLETED, AppointmentStatus.COMPLETED, AppointmentStatus.NO_SHOW,
+                AppointmentStatus.CONFIRMED, AppointmentStatus.CONFIRMED, AppointmentStatus.BOOKED,
+                AppointmentStatus.BOOKED, AppointmentStatus.CONFIRMED, AppointmentStatus.CANCELLED,
+                AppointmentStatus.BOOKED};
+        LocalTime[] startTimes = {
+                LocalTime.of(10, 0), LocalTime.of(10, 30), LocalTime.of(11, 0), LocalTime.of(12, 0),
+                LocalTime.of(13, 0), LocalTime.of(14, 30), LocalTime.of(15, 0), LocalTime.of(16, 0),
+                LocalTime.of(17, 0), LocalTime.of(18, 30)};
+        int idx = 0;
+        for (int day = -1; day <= 5; day++) {
+            LocalDate date = today.plusDays(day);
+            if (date.getDayOfWeek() == DayOfWeek.SUNDAY) {
+                continue;
+            }
+            int perDay = day <= 0 ? 4 : 3;
+            for (int i = 0; i < perDay; i++) {
+                Staff staff = staffList.get(idx % staffList.size());
+                Client client = clients.get(idx % clients.size());
+                ServiceItem svc = services.get(idx % services.size());
+                // avoid overlapping with same staff on this day by staggering hour
+                LocalDateTime start = date.atTime(startTimes[i % startTimes.length])
+                        .plusMinutes(GRID_OFFSET * staffList.indexOf(staff));
+                LocalDateTime end = start.plusMinutes(svc.getDurationMinutes() + svc.getProcessingMinutes());
+                if (end.toLocalTime().isAfter(LocalTime.of(20, 0)) || end.isBefore(start)) {
+                    idx++;
+                    continue;
+                }
+                Appointment a = new Appointment();
+                a.setClient(client);
+                a.setStaff(staff);
+                a.setStartTime(start);
+                a.setEndTime(end);
+                a.setServices(List.of(svc));
+                a.setStatus(statuses[idx % statuses.length]);
+                a.setSource(idx % 3 == 0 ? AppointmentSource.ONLINE : AppointmentSource.DESK);
+                a.setTotalPrice(svc.getPrice());
+                appointmentRepository.save(a);
+                idx++;
+            }
+        }
+    }
+
+    private static final int GRID_OFFSET = 10;
 }
