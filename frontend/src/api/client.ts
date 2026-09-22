@@ -190,6 +190,8 @@ export interface AppointmentDto {
   source: AppointmentSource;
   notes?: string;
   totalPrice: number;
+  saleId?: string;
+  saleStatus?: SaleStatus;
 }
 
 export interface AppointmentRequest {
@@ -204,6 +206,102 @@ export interface AppointmentRequest {
 export interface AvailabilitySlot {
   start: string;
   end: string;
+}
+
+export type SaleStatus = 'DRAFT' | 'PAID' | 'VOID' | 'REFUNDED';
+export type PaymentMethod = 'CASH' | 'CARD' | 'UPI' | 'WALLET' | 'OTHER';
+export type SaleLineType = 'SERVICE' | 'PRODUCT';
+
+export interface ProductDto {
+  id: string;
+  name: string;
+  sku?: string;
+  category?: string;
+  price: number;
+  stockQty: number;
+  lowStockThreshold: number;
+  active: boolean;
+  lowStock: boolean;
+}
+
+export interface ProductRequest {
+  name: string;
+  sku?: string;
+  category?: string;
+  price: number;
+  stockQty?: number;
+  lowStockThreshold?: number;
+  active?: boolean;
+}
+
+export interface SaleLineDto {
+  id: string;
+  type: SaleLineType;
+  refId: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  discountAmount: number;
+  lineTotal: number;
+}
+
+export interface SaleLineRequest {
+  type: SaleLineType;
+  refId: string;
+  quantity: number;
+  discountAmount?: number;
+}
+
+export interface PaymentDto {
+  id: string;
+  method: PaymentMethod;
+  amount: number;
+  reference?: string;
+  paidAt: string;
+}
+
+export interface SaleDto {
+  id: string;
+  invoiceNumber?: string;
+  clientId?: string;
+  clientName?: string;
+  clientPhone?: string;
+  appointmentId?: string;
+  staffId?: string;
+  staffName?: string;
+  lines: SaleLineDto[];
+  discountAmount: number;
+  taxRate: number;
+  subtotal: number;
+  taxAmount: number;
+  tipAmount: number;
+  total: number;
+  payments: PaymentDto[];
+  status: SaleStatus;
+  notes?: string;
+  paidAt?: string;
+  createdAt: string;
+  warnings: string[];
+}
+
+export interface SaleRequest {
+  clientId?: string;
+  staffId?: string;
+  appointmentId?: string;
+  lines: SaleLineRequest[];
+  discountAmount?: number;
+  tipAmount?: number;
+  notes?: string;
+}
+
+export interface SaleSummary {
+  revenue: number;
+  saleCount: number;
+  avgTicket: number;
+  serviceRevenue: number;
+  retailRevenue: number;
+  tipTotal: number;
+  byMethod: Record<string, number>;
 }
 
 const BASE = '/api/v1';
@@ -372,4 +470,53 @@ export const api = {
     request<{ slots: AvailabilitySlot[] }>(
       `/appointments/availability?staffId=${staffId}&date=${date}&serviceIds=${serviceIds.join(',')}`,
     ),
+
+  // Products & Sales
+  listProducts: (params?: { active?: boolean; lowStock?: boolean }) => {
+    const q = new URLSearchParams();
+    if (params?.active !== undefined) q.set('active', String(params.active));
+    if (params?.lowStock) q.set('lowStock', 'true');
+    const qs = q.toString();
+    return request<ProductDto[]>(`/products${qs ? `?${qs}` : ''}`);
+  },
+  createProduct: (body: ProductRequest) =>
+    request<ProductDto>('/products', { method: 'POST', body: JSON.stringify(body) }),
+  updateProduct: (id: string, body: ProductRequest) =>
+    request<ProductDto>(`/products/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  listSales: (params: {
+    from?: string;
+    to?: string;
+    status?: SaleStatus;
+    clientId?: string;
+    page?: number;
+    size?: number;
+  }) => {
+    const q = new URLSearchParams();
+    if (params.from) q.set('from', params.from);
+    if (params.to) q.set('to', params.to);
+    if (params.status) q.set('status', params.status);
+    if (params.clientId) q.set('clientId', params.clientId);
+    q.set('page', String(params.page ?? 0));
+    q.set('size', String(params.size ?? 20));
+    return request<Page<SaleDto>>(`/sales?${q}`);
+  },
+  getSale: (id: string) => request<SaleDto>(`/sales/${id}`),
+  createSale: (body: SaleRequest) =>
+    request<SaleDto>('/sales', { method: 'POST', body: JSON.stringify(body) }),
+  updateSale: (id: string, body: SaleRequest) =>
+    request<SaleDto>(`/sales/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  addPayment: (id: string, method: PaymentMethod, amount: number, reference?: string) =>
+    request<SaleDto>(`/sales/${id}/payments`, {
+      method: 'POST',
+      body: JSON.stringify({ method, amount, reference }),
+    }),
+  removePayment: (id: string, paymentId: string) =>
+    request<SaleDto>(`/sales/${id}/payments/${paymentId}`, { method: 'DELETE' }),
+  paySale: (id: string) => request<SaleDto>(`/sales/${id}/pay`, { method: 'POST' }),
+  voidSale: (id: string) => request<SaleDto>(`/sales/${id}/void`, { method: 'POST' }),
+  refundSale: (id: string) => request<SaleDto>(`/sales/${id}/refund`, { method: 'POST' }),
+  saleFromAppointment: (appointmentId: string) =>
+    request<SaleDto>(`/sales/from-appointment/${appointmentId}`, { method: 'POST' }),
+  saleSummary: (from: string, to: string) =>
+    request<SaleSummary>(`/sales/summary?from=${from}&to=${to}`),
 };

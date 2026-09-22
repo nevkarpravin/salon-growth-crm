@@ -7,6 +7,7 @@ import com.salon.crm.entity.StaffRole;
 import com.salon.crm.entity.WorkingHours;
 import com.salon.crm.repository.AppointmentRepository;
 import com.salon.crm.repository.ClientRepository;
+import com.salon.crm.repository.SaleRepository;
 import com.salon.crm.repository.ServiceItemRepository;
 import com.salon.crm.repository.StaffRepository;
 import com.salon.crm.repository.VisitRepository;
@@ -40,6 +41,7 @@ class SchedulingTest {
     @Autowired StaffRepository staffRepository;
     @Autowired ServiceItemRepository serviceItemRepository;
     @Autowired AppointmentRepository appointmentRepository;
+    @Autowired SaleRepository saleRepository;
     @Autowired VisitRepository visitRepository;
 
     private Client client;
@@ -49,6 +51,7 @@ class SchedulingTest {
 
     @BeforeEach
     void setup() {
+        saleRepository.deleteAll();
         appointmentRepository.deleteAll();
         visitRepository.deleteAll();
         staffRepository.deleteAll();

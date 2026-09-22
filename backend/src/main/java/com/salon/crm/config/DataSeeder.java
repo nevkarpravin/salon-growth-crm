@@ -12,9 +12,18 @@ import com.salon.crm.entity.Staff;
 import com.salon.crm.entity.StaffRole;
 import com.salon.crm.entity.Visit;
 import com.salon.crm.entity.WorkingHours;
+import com.salon.crm.entity.Payment;
+import com.salon.crm.entity.PaymentMethod;
+import com.salon.crm.entity.Product;
+import com.salon.crm.entity.Sale;
+import com.salon.crm.entity.SaleLine;
+import com.salon.crm.entity.SaleLineType;
+import com.salon.crm.entity.SaleStatus;
 import com.salon.crm.repository.AppointmentRepository;
 import com.salon.crm.repository.ClientRepository;
 import com.salon.crm.repository.FormulaCardRepository;
+import com.salon.crm.repository.ProductRepository;
+import com.salon.crm.repository.SaleRepository;
 import com.salon.crm.repository.ServiceItemRepository;
 import com.salon.crm.repository.StaffRepository;
 import com.salon.crm.repository.VisitRepository;
@@ -25,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -42,18 +52,24 @@ public class DataSeeder implements CommandLineRunner {
     private final StaffRepository staffRepository;
     private final ServiceItemRepository serviceItemRepository;
     private final AppointmentRepository appointmentRepository;
+    private final ProductRepository productRepository;
+    private final SaleRepository saleRepository;
 
     public DataSeeder(ClientRepository clientRepository, VisitRepository visitRepository,
                       FormulaCardRepository formulaCardRepository,
                       StaffRepository staffRepository,
                       ServiceItemRepository serviceItemRepository,
-                      AppointmentRepository appointmentRepository) {
+                      AppointmentRepository appointmentRepository,
+                      ProductRepository productRepository,
+                      SaleRepository saleRepository) {
         this.clientRepository = clientRepository;
         this.visitRepository = visitRepository;
         this.formulaCardRepository = formulaCardRepository;
         this.staffRepository = staffRepository;
         this.serviceItemRepository = serviceItemRepository;
         this.appointmentRepository = appointmentRepository;
+        this.productRepository = productRepository;
+        this.saleRepository = saleRepository;
     }
 
     @Override
@@ -242,6 +258,7 @@ public class DataSeeder implements CommandLineRunner {
                 LocalTime.of(13, 0), LocalTime.of(14, 30), LocalTime.of(15, 0), LocalTime.of(16, 0),
                 LocalTime.of(17, 0), LocalTime.of(18, 30)};
         int idx = 0;
+        List<Appointment> seededAppointments = new ArrayList<>();
         for (int day = -1; day <= 5; day++) {
             LocalDate date = today.plusDays(day);
             if (date.getDayOfWeek() == DayOfWeek.SUNDAY) {
@@ -265,14 +282,129 @@ public class DataSeeder implements CommandLineRunner {
                 a.setStaff(staff);
                 a.setStartTime(start);
                 a.setEndTime(end);
-                a.setServices(List.of(svc));
+                a.setServices(new ArrayList<>(List.of(svc)));
                 a.setStatus(statuses[idx % statuses.length]);
                 a.setSource(idx % 3 == 0 ? AppointmentSource.ONLINE : AppointmentSource.DESK);
                 a.setTotalPrice(svc.getPrice());
                 appointmentRepository.save(a);
+                seededAppointments.add(a);
                 idx++;
             }
         }
+
+        seedSales(today, staffList, clients, services, seededAppointments);
+    }
+
+    private void seedSales(LocalDate today, List<Staff> staffList, List<Client> clients,
+                           List<ServiceItem> services, List<Appointment> appointments) {
+        // ~10 products, some low stock
+        Object[][] productData = {
+                {"Argan Shampoo 250ml", "SHP-ARG-250", "Haircare", 650, 24, 5},
+                {"Keratin Serum 100ml", "SER-KER-100", "Haircare", 950, 18, 5},
+                {"Hair Mask 200g", "MSK-REP-200", "Haircare", 1200, 3, 5},
+                {"Vitamin C Serum 30ml", "SER-VTC-030", "Skincare", 1400, 12, 5},
+                {"Sunscreen SPF50 50g", "SN-SPF50", "Skincare", 550, 30, 10},
+                {"Nail Polish - Rouge", "NP-ROUGE", "Nails", 250, 2, 5},
+                {"Beard Oil 30ml", "BD-OIL-30", "Grooming", 450, 15, 5},
+                {"Dry Shampoo 150ml", "DRY-SHP-150", "Haircare", 700, 20, 5},
+                {"Face Mist 100ml", "FM-ROSE-100", "Skincare", 380, 4, 5},
+                {"Wax Strips Pack", "WX-STRP-20", "Consumables", 180, 40, 10},
+        };
+        List<Product> products = new ArrayList<>();
+        for (Object[] pd : productData) {
+            Product p = new Product();
+            p.setName((String) pd[0]);
+            p.setSku((String) pd[1]);
+            p.setCategory((String) pd[2]);
+            p.setPrice(BigDecimal.valueOf((Integer) pd[3]));
+            p.setStockQty((Integer) pd[4]);
+            p.setLowStockThreshold((Integer) pd[5]);
+            products.add(productRepository.save(p));
+        }
+
+        // PAID sales for past COMPLETED appointments
+        PaymentMethod[] methods = {PaymentMethod.UPI, PaymentMethod.CASH, PaymentMethod.CARD,
+                PaymentMethod.UPI, PaymentMethod.WALLET};
+        int inv = 0;
+        for (Appointment a : appointments) {
+            if (a.getStatus() != AppointmentStatus.COMPLETED) {
+                continue;
+            }
+            Sale sale = paidSaleBase(a.getClient(), a.getStaff(), a,
+                    a.getStartTime().toLocalDate().equals(today) ? today : a.getStartTime().toLocalDate());
+            for (ServiceItem s : a.getServices()) {
+                sale.getLines().add(saleLine(SaleLineType.SERVICE, s.getId(), s.getName(), 1, s.getPrice()));
+            }
+            if (inv % 2 == 0) {
+                Product p = products.get(inv % products.size());
+                sale.getLines().add(saleLine(SaleLineType.PRODUCT, p.getId(), p.getName(), 1, p.getPrice()));
+            }
+            finalizeSeedSale(sale, methods[inv % methods.length], ++inv);
+        }
+
+        // Walk-in and client sales over the last 30 days (no appointment)
+        for (int i = 0; i < 8; i++) {
+            Client client = i % 3 == 0 ? null : clients.get(i % clients.size());
+            Staff staff = staffList.get(i % staffList.size());
+            Sale sale = paidSaleBase(client, staff, null, today.minusDays(1 + i * 3));
+            ServiceItem svc = services.get(i % services.size());
+            sale.getLines().add(saleLine(SaleLineType.SERVICE, svc.getId(), svc.getName(), 1, svc.getPrice()));
+            if (i % 2 == 1) {
+                Product p = products.get(i % products.size());
+                sale.getLines().add(saleLine(SaleLineType.PRODUCT, p.getId(), p.getName(), 2, p.getPrice()));
+            }
+            sale.setTipAmount(i % 4 == 0 ? BigDecimal.valueOf(100) : BigDecimal.ZERO);
+            finalizeSeedSale(sale, methods[i % methods.length], ++inv);
+        }
+    }
+
+    private Sale paidSaleBase(Client client, Staff staff, Appointment appointment, LocalDate date) {
+        Sale sale = new Sale();
+        sale.setClient(client);
+        sale.setStaff(staff);
+        sale.setAppointment(appointment);
+        sale.setTaxRate(BigDecimal.valueOf(18));
+        sale.setDiscountAmount(BigDecimal.ZERO);
+        sale.setTipAmount(BigDecimal.ZERO);
+        return sale;
+    }
+
+    private SaleLine saleLine(SaleLineType type, java.util.UUID refId, String name,
+                              int qty, BigDecimal unitPrice) {
+        SaleLine l = new SaleLine();
+        l.setType(type);
+        l.setRefId(refId);
+        l.setName(name);
+        l.setQuantity(qty);
+        l.setUnitPrice(unitPrice);
+        l.setDiscountAmount(BigDecimal.ZERO);
+        return l;
+    }
+
+    private void finalizeSeedSale(Sale sale, PaymentMethod method, int invSeq) {
+        BigDecimal subtotal = BigDecimal.ZERO;
+        for (SaleLine l : sale.getLines()) {
+            BigDecimal lt = l.getUnitPrice().multiply(BigDecimal.valueOf(l.getQuantity()))
+                    .subtract(l.getDiscountAmount());
+            l.setLineTotal(lt);
+            subtotal = subtotal.add(lt);
+        }
+        BigDecimal taxable = subtotal.subtract(sale.getDiscountAmount());
+        BigDecimal tax = taxable.multiply(sale.getTaxRate())
+                .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+        sale.setSubtotal(subtotal);
+        sale.setTaxAmount(tax);
+        sale.setTotal(taxable.add(tax).add(sale.getTipAmount()));
+        Payment p = new Payment();
+        p.setMethod(method);
+        p.setAmount(sale.getTotal());
+        p.setReference(method == PaymentMethod.UPI ? "upi@salon" + invSeq : null);
+        sale.getPayments().add(p);
+        sale.setStatus(SaleStatus.PAID);
+        sale.setPaidAt(Instant.now().minusSeconds(86400L * (invSeq % 28)));
+        sale.setInvoiceNumber("INV-" + LocalDate.now().getYear()
+                + "-" + String.format("%04d", invSeq));
+        saleRepository.save(sale);
     }
 
     private static final int GRID_OFFSET = 10;

@@ -24,6 +24,8 @@ server:
 
 crm:
   seed: true
+  tax:
+    rate: 18
   segments:
     new-days: 30
     at-risk-min-days: 45

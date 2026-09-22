@@ -43,6 +43,14 @@ Requires backend running.
 
 ## Features
 
+**Checkout & Sales (POS)**
+- Product catalog with SKU, stock tracking, low-stock thresholds
+- POS checkout: service/product lines, qty & line discounts, order discount, tip, GST (crm.tax.rate), split payments
+- Pay finalizes: `INV-<yyyy>-<seq>` invoice, stock decrement, low-stock warnings, appointment → COMPLETED + single synced Visit
+- `POST /sales/from-appointment/{id}` pre-fills a draft from an appointment; void/refund restore stock
+- Sales list with date filters + summary endpoint (revenue, avg ticket, service vs retail, by payment method)
+- Printable invoice view; mobile POS = catalogue + sticky cart bottom sheet
+
 **Appointments & Scheduling**
 - Staff CRUD with roles, colors, and per-weekday working hours
 - Service catalog with duration + processing time and pricing
