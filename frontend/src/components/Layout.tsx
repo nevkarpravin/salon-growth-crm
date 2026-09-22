@@ -1,7 +1,18 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { CalendarDays, Upload, Users, Sparkles, Scissors, UserCog } from 'lucide-react'
+import {
+  CalendarDays,
+  ListOrdered,
+  MessageCircle,
+  Upload,
+  Users,
+  Sparkles,
+  Scissors,
+  UserCog,
+} from 'lucide-react'
 
 const nav = [
+  { to: '/queue', label: 'Queue', icon: ListOrdered },
+  { to: '/whatsapp', label: 'WhatsApp', icon: MessageCircle },
   { to: '/calendar', label: 'Calendar', icon: CalendarDays },
   { to: '/clients', label: 'Clients', icon: Users },
   { to: '/services', label: 'Services', icon: Scissors },

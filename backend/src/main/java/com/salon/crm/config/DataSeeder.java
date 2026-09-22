@@ -6,7 +6,11 @@ import com.salon.crm.entity.AppointmentSource;
 import com.salon.crm.entity.Client;
 import com.salon.crm.entity.FormulaCard;
 import com.salon.crm.entity.Gender;
+import com.salon.crm.entity.PaymentMode;
+import com.salon.crm.entity.PaymentStatus;
 import com.salon.crm.entity.PreferredChannel;
+import com.salon.crm.entity.QueueTicket;
+import com.salon.crm.entity.QueueTicketStatus;
 import com.salon.crm.entity.ServiceItem;
 import com.salon.crm.entity.Staff;
 import com.salon.crm.entity.StaffRole;
@@ -15,6 +19,7 @@ import com.salon.crm.entity.WorkingHours;
 import com.salon.crm.repository.AppointmentRepository;
 import com.salon.crm.repository.ClientRepository;
 import com.salon.crm.repository.FormulaCardRepository;
+import com.salon.crm.repository.QueueTicketRepository;
 import com.salon.crm.repository.ServiceItemRepository;
 import com.salon.crm.repository.StaffRepository;
 import com.salon.crm.repository.VisitRepository;
@@ -25,9 +30,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -42,18 +49,21 @@ public class DataSeeder implements CommandLineRunner {
     private final StaffRepository staffRepository;
     private final ServiceItemRepository serviceItemRepository;
     private final AppointmentRepository appointmentRepository;
+    private final QueueTicketRepository queueTicketRepository;
 
     public DataSeeder(ClientRepository clientRepository, VisitRepository visitRepository,
                       FormulaCardRepository formulaCardRepository,
                       StaffRepository staffRepository,
                       ServiceItemRepository serviceItemRepository,
-                      AppointmentRepository appointmentRepository) {
+                      AppointmentRepository appointmentRepository,
+                      QueueTicketRepository queueTicketRepository) {
         this.clientRepository = clientRepository;
         this.visitRepository = visitRepository;
         this.formulaCardRepository = formulaCardRepository;
         this.staffRepository = staffRepository;
         this.serviceItemRepository = serviceItemRepository;
         this.appointmentRepository = appointmentRepository;
+        this.queueTicketRepository = queueTicketRepository;
     }
 
     @Override
@@ -174,6 +184,75 @@ public class DataSeeder implements CommandLineRunner {
         }
 
         seedScheduling(today);
+        seedQueue(today);
+    }
+
+    private void seedQueue(LocalDate today) {
+        List<Client> clients = clientRepository.findAll();
+        List<ServiceItem> services = serviceItemRepository.findAll();
+        List<Staff> staff = staffRepository.findAll();
+        if (clients.isEmpty() || services.isEmpty()) {
+            return;
+        }
+        Staff stylist = staff.stream()
+                .filter(s -> s.getRole() == StaffRole.STYLIST).findFirst().orElse(null);
+        Instant now = Instant.now();
+
+        QueueTicket done1 = ticket(clients.get(0), null,
+                List.of(services.get(0)), 1, today, QueueTicketStatus.COMPLETED,
+                now.minus(3, ChronoUnit.HOURS), "DESK");
+        done1.setStartedAt(now.minus(3, ChronoUnit.HOURS));
+        done1.setFinishedAt(now.minus(3, ChronoUnit.HOURS).plus(50, ChronoUnit.MINUTES));
+        done1.setPaymentStatus(PaymentStatus.PAID);
+        done1.setPaymentMode(PaymentMode.UPI_LINK);
+        done1.setPaidAt(done1.getFinishedAt().plus(5, ChronoUnit.MINUTES));
+        done1.setRating(5);
+        done1.setReviewedAt(done1.getPaidAt());
+        queueTicketRepository.save(done1);
+
+        QueueTicket done2 = ticket(clients.get(1), stylist,
+                List.of(services.get(Math.min(3, services.size() - 1))), 2, today,
+                QueueTicketStatus.COMPLETED, now.minus(2, ChronoUnit.HOURS), "DESK");
+        done2.setStartedAt(now.minus(2, ChronoUnit.HOURS));
+        done2.setFinishedAt(now.minus(75, ChronoUnit.MINUTES));
+        done2.setPaymentStatus(PaymentStatus.PENDING);
+        queueTicketRepository.save(done2);
+
+        QueueTicket inService = ticket(clients.get(2), stylist,
+                List.of(services.get(0)), 3, today, QueueTicketStatus.IN_SERVICE,
+                now.minus(40, ChronoUnit.MINUTES), "DESK");
+        inService.setCalledAt(now.minus(15, ChronoUnit.MINUTES));
+        inService.setStartedAt(now.minus(10, ChronoUnit.MINUTES));
+        queueTicketRepository.save(inService);
+
+        queueTicketRepository.save(ticket(clients.get(3), stylist,
+                List.of(services.get(Math.min(5, services.size() - 1))), 4, today,
+                QueueTicketStatus.WAITING, now.minus(20, ChronoUnit.MINUTES), "DESK"));
+        queueTicketRepository.save(ticket(clients.get(4), null,
+                List.of(services.get(0)), 5, today,
+                QueueTicketStatus.WAITING, now.minus(12, ChronoUnit.MINUTES), "WHATSAPP"));
+        queueTicketRepository.save(ticket(clients.get(5), null,
+                List.of(services.get(Math.min(9, services.size() - 1))), 6, today,
+                QueueTicketStatus.WAITING, now.minus(5, ChronoUnit.MINUTES), "DESK"));
+    }
+
+    private QueueTicket ticket(Client client, Staff staff, List<ServiceItem> services,
+                               int token, LocalDate date, QueueTicketStatus status,
+                               Instant joinedAt, String source) {
+        QueueTicket t = new QueueTicket();
+        t.setClient(client);
+        t.setStaff(staff);
+        t.setServices(new ArrayList<>(services));
+        t.setTokenNumber(token);
+        t.setQueueDate(date);
+        t.setQueueOrder(token);
+        t.setStatus(status);
+        t.setJoinedAt(joinedAt);
+        t.setSource(source);
+        t.setAmount(services.stream()
+                .map(s -> s.getPrice() != null ? s.getPrice() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add));
+        return t;
     }
 
     private void seedScheduling(LocalDate today) {

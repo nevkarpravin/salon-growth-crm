@@ -206,6 +206,82 @@ export interface AvailabilitySlot {
   end: string;
 }
 
+// Virtual Room (walk-in queue over WhatsApp)
+
+export type QueueTicketStatus =
+  | 'WAITING'
+  | 'CALLED'
+  | 'IN_SERVICE'
+  | 'COMPLETED'
+  | 'SKIPPED'
+  | 'CANCELLED'
+  | 'EXPIRED';
+export type PaymentStatus = 'NONE' | 'PENDING' | 'PAID';
+export type PaymentMode = 'UPI_LINK' | 'UPI_MANUAL' | 'CASH' | 'CARD' | 'OTHER';
+
+export interface QueueTicketDto {
+  id: string;
+  tokenNumber: number;
+  queueDate: string;
+  status: QueueTicketStatus;
+  clientId: string;
+  clientName: string;
+  clientPhone: string;
+  staffId?: string;
+  staffName?: string;
+  services: { id: string; name: string; durationMinutes: number; price: number }[];
+  position?: number;
+  etaMinutes?: number;
+  peopleAhead?: number;
+  skipCount: number;
+  source?: string;
+  joinedAt?: string;
+  calledAt?: string;
+  startedAt?: string;
+  finishedAt?: string;
+  amount?: number;
+  paymentStatus: PaymentStatus;
+  paymentMode?: PaymentMode;
+  paymentLink?: string;
+  paidAt?: string;
+  rating?: number;
+  reviewComment?: string;
+  publicUrl?: string;
+}
+
+export interface QueueBoardDto {
+  waiting: QueueTicketDto[];
+  inService: QueueTicketDto[];
+  completed: QueueTicketDto[];
+  activeStaff: number;
+  asOf: string;
+}
+
+export interface OutboundMessageDto {
+  id: string;
+  toPhone: string;
+  body: string;
+  channel: string;
+  status: string;
+  providerMessageId?: string;
+  error?: string;
+  ticketId?: string;
+  createdAt: string;
+}
+
+export interface JoinQueueRequest {
+  phone: string;
+  name?: string;
+  serviceIds: string[];
+  staffId?: string;
+  source?: string;
+}
+
+export interface SimulateResponse {
+  reply: string;
+  messages: OutboundMessageDto[];
+}
+
 const BASE = '/api/v1';
 
 export class ApiError extends Error {
@@ -371,5 +447,61 @@ export const api = {
   availability: (staffId: string, date: string, serviceIds: string[]) =>
     request<{ slots: AvailabilitySlot[] }>(
       `/appointments/availability?staffId=${staffId}&date=${date}&serviceIds=${serviceIds.join(',')}`,
+    ),
+
+  // Virtual Room / queue
+  queueBoard: () => request<QueueBoardDto>('/queue/board'),
+  listQueue: (status?: QueueTicketStatus[]) =>
+    request<QueueTicketDto[]>(
+      `/queue${status?.length ? `?status=${status.join(',')}` : ''}`,
+    ),
+  joinQueue: (body: JoinQueueRequest) =>
+    request<QueueTicketDto>('/queue', { method: 'POST', body: JSON.stringify(body) }),
+  getTicket: (id: string) => request<QueueTicketDto>(`/queue/${id}`),
+  getTicketByPhone: (phone: string) =>
+    request<QueueTicketDto>(`/queue/by-phone/${phone}`),
+  publicTicket: (id: string) => request<QueueTicketDto>(`/public/queue/${id}`),
+  callTicket: (id: string) =>
+    request<QueueTicketDto>(`/queue/${id}/call`, { method: 'POST' }),
+  startTicket: (id: string) =>
+    request<QueueTicketDto>(`/queue/${id}/start`, { method: 'POST' }),
+  finishTicket: (id: string) =>
+    request<QueueTicketDto>(`/queue/${id}/finish`, { method: 'POST' }),
+  skipTicket: (id: string) =>
+    request<QueueTicketDto>(`/queue/${id}/skip`, { method: 'POST' }),
+  cancelTicket: (id: string, reason?: string) =>
+    request<QueueTicketDto>(`/queue/${id}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
+  leaveTicket: (id: string) =>
+    request<QueueTicketDto>(`/queue/${id}/leave`, { method: 'POST' }),
+  publicLeaveTicket: (id: string) =>
+    request<QueueTicketDto>(`/public/queue/${id}/leave`, { method: 'POST' }),
+  markTicketPaid: (id: string, mode: PaymentMode, reference?: string) =>
+    request<QueueTicketDto>(`/queue/${id}/payments/mark-paid`, {
+      method: 'POST',
+      body: JSON.stringify({ mode, reference }),
+    }),
+  submitReview: (id: string, rating: number, comment?: string) =>
+    request<QueueTicketDto>(`/queue/${id}/review`, {
+      method: 'POST',
+      body: JSON.stringify({ rating, comment }),
+    }),
+  publicSubmitReview: (id: string, rating: number, comment?: string) =>
+    request<QueueTicketDto>(`/public/queue/${id}/review`, {
+      method: 'POST',
+      body: JSON.stringify({ rating, comment }),
+    }),
+  requestReview: (id: string) =>
+    request<QueueTicketDto>(`/queue/${id}/review/request`, { method: 'POST' }),
+  whatsappSimulate: (from: string, text: string, profileName?: string) =>
+    request<SimulateResponse>('/whatsapp/simulate', {
+      method: 'POST',
+      body: JSON.stringify({ from, text, profileName }),
+    }),
+  whatsappMessages: (phone?: string) =>
+    request<OutboundMessageDto[]>(
+      `/whatsapp/messages${phone ? `?phone=${encodeURIComponent(phone)}` : ''}`,
     ),
 };

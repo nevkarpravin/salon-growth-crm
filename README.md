@@ -64,6 +64,31 @@ Requires backend running.
 - `/api/v1/segments` counts and `/api/v1/tags` counts
 - Responsive UI: sidebar on desktop, top bar + bottom tabs on mobile (works down to 360px)
 
+**Virtual Room (WhatsApp queue)**
+
+- Walk-in queue (`/api/v1/queue`): per-day tokens, position + ETA (service durations / active staff), statuses WAITING → CALLED → IN_SERVICE → COMPLETED / SKIPPED / CANCELLED / EXPIRED
+- Skip moves a ticket back `crm.virtual-room.requeue-positions` places; the `max-skips`-th skip cancels it (NO_SHOW)
+- "You're next" notification when a waiting ticket reaches `notify-at-position`
+- WhatsApp bot (`WhatsAppConversationService`): menu-driven join/status/pay/review/leave over `POST /api/v1/whatsapp/webhook` (Meta Cloud payload) and `POST /api/v1/whatsapp/simulate` (dev)
+- Bills: `finish` creates a Visit, sets payment PENDING and a UPI intent link (`upi://pay?...`); `markPaid` is idempotent and sends a receipt; review prompt on payment (or after `review-delay-minutes`)
+- Public mobile page `/q/:id` (`/api/v1/public/queue/{id}`): live position/ETA, leave queue, pay via UPI, leave a rating — client phone masked
+- Queue board UI at `/queue` (polls 10s), WhatsApp simulator UI at `/whatsapp` (polls outbox 5s)
+
+Config keys (all under `crm.virtual-room.*`, env overrides in `application.yml`):
+`salon-name`, `notify-at-position`, `requeue-positions`, `max-skips`, `presence-timeout-minutes`,
+`review-delay-minutes`, `google-review-url`, `public-base-url`, `payments.upi-id`,
+`payments.payee-name`, `whatsapp.provider` (LOG|META), `whatsapp.access-token`,
+`whatsapp.phone-number-id`, `whatsapp.verify-token`.
+
+**Connecting real WhatsApp**
+
+Set `WHATSAPP_PROVIDER=META`, `WHATSAPP_ACCESS_TOKEN`, and `WHATSAPP_PHONE_NUMBER_ID` from your
+Meta app (WhatsApp Business Cloud API), then point the Meta webhook at
+`POST /api/v1/whatsapp/webhook` and verify it with `GET /api/v1/whatsapp/webhook` using
+`WHATSAPP_VERIFY_TOKEN` (default `salon-verify`). With the default `LOG` provider, outbound
+messages are just written to the `outbound_messages` table (browse them in the simulator page
+or via `GET /api/v1/whatsapp/messages`).
+
 ## Tests
 
 ```bash

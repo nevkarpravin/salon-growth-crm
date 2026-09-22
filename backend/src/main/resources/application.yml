@@ -31,6 +31,23 @@ crm:
     lapsed-days: 60
     vip-spend: 20000
     vip-visits: 10
+  virtual-room:
+    salon-name: ${VIRTUAL_ROOM_SALON_NAME:Glow Salon}
+    notify-at-position: 2
+    requeue-positions: 2
+    max-skips: 2
+    presence-timeout-minutes: 5
+    review-delay-minutes: 0
+    google-review-url: ${GOOGLE_REVIEW_URL:}
+    public-base-url: ${PUBLIC_BASE_URL:http://localhost:5173}
+    payments:
+      upi-id: ${UPI_ID:glowsalon@upi}
+      payee-name: ${UPI_PAYEE_NAME:Glow Salon}
+    whatsapp:
+      provider: ${WHATSAPP_PROVIDER:LOG}
+      access-token: ${WHATSAPP_ACCESS_TOKEN:}
+      phone-number-id: ${WHATSAPP_PHONE_NUMBER_ID:}
+      verify-token: ${WHATSAPP_VERIFY_TOKEN:salon-verify}
 
 springdoc:
   swagger-ui:
