@@ -5,15 +5,21 @@ import ClientsPage from './pages/ClientsPage'
 import ClientFormPage from './pages/ClientFormPage'
 import ClientDetailPage from './pages/ClientDetailPage'
 import ImportPage from './pages/ImportPage'
+import QueuePage from './pages/QueuePage'
 import ServicesPage from './pages/ServicesPage'
 import StaffPage from './pages/StaffPage'
+import WhatsAppSimulatorPage from './pages/WhatsAppSimulatorPage'
+import PublicTicketPage from './pages/PublicTicketPage'
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/q/:id" element={<PublicTicketPage />} />
         <Route element={<Layout />}>
-          <Route path="/" element={<Navigate to="/calendar" replace />} />
+          <Route path="/" element={<Navigate to="/queue" replace />} />
+          <Route path="/queue" element={<QueuePage />} />
+          <Route path="/whatsapp" element={<WhatsAppSimulatorPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/services" element={<ServicesPage />} />
           <Route path="/staff" element={<StaffPage />} />
