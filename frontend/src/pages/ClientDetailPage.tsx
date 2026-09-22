@@ -121,7 +121,7 @@ export default function ClientDetailPage() {
       </div>
 
       {/* Stats */}
-      <div className="mb-5 grid grid-cols-3 gap-3">
+      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Stat label="Visits" value={String(client.visitCount)} />
         <Stat label="Total spend" value={`₹${Number(client.totalSpend ?? 0).toLocaleString('en-IN')}`} />
         <Stat label="Last visit" value={client.lastVisitDate ?? '—'} />

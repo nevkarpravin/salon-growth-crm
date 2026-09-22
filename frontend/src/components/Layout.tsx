@@ -43,7 +43,7 @@ export default function Layout() {
         <span className="font-bold text-gray-900">Salon CRM</span>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl px-4 pb-24 pt-6 sm:px-6 lg:ml-64 lg:max-w-none lg:px-8 lg:pb-8">
+      <main className="mx-auto w-full max-w-7xl px-4 pb-24 pt-6 sm:px-6 lg:ml-64 lg:w-auto lg:max-w-none lg:px-8 lg:pb-8">
         <Outlet />
       </main>
 

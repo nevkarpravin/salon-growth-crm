@@ -124,7 +124,7 @@ export default function ClientsPage() {
       )}
 
       {/* Table (md+) */}
-      <div className="hidden overflow-hidden rounded-xl border border-gray-200 bg-white md:block">
+      <div className="hidden overflow-x-auto rounded-xl border border-gray-200 bg-white md:block">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-gray-200 bg-gray-50 text-xs uppercase text-gray-500">
             <tr>
