@@ -43,6 +43,16 @@ Requires backend running.
 
 ## Features
 
+**Appointments & Scheduling**
+- Staff CRUD with roles, colors, and per-weekday working hours
+- Service catalog with duration + processing time and pricing
+- Appointment booking with overlap (409) and working-hours (400) validation
+- Status lifecycle BOOKED → CONFIRMED/COMPLETED/CANCELLED/NO_SHOW; completing books a client Visit
+- Availability endpoint (`/api/v1/appointments/availability`) — 15-min slot grid
+- Calendar UI: day time-grid per staff on desktop, grouped list on mobile; booking & reschedule sheets
+
+**Core CRM**
+
 - Client CRUD with soft-delete (ARCHIVED), unique phone, validation via RFC-7807 ProblemDetail
 - Tags (replace-set endpoint), consent & channel preferences
 - Visits (services/products/amount/stylist) and Formula Cards per client

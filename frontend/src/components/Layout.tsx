@@ -1,8 +1,11 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { Upload, Users, Sparkles } from 'lucide-react'
+import { CalendarDays, Upload, Users, Sparkles, Scissors, UserCog } from 'lucide-react'
 
 const nav = [
+  { to: '/calendar', label: 'Calendar', icon: CalendarDays },
   { to: '/clients', label: 'Clients', icon: Users },
+  { to: '/services', label: 'Services', icon: Scissors },
+  { to: '/staff', label: 'Staff', icon: UserCog },
   { to: '/import', label: 'Import', icon: Upload },
 ]
 
